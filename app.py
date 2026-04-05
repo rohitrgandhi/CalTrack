@@ -2,14 +2,14 @@ import os
 import base64
 import json
 from flask import Flask, render_template, request, jsonify
-from anthropic import Anthropic
+from openai import OpenAI
 from datetime import datetime
 from dotenv import load_dotenv
 
 load_dotenv()
 
 app = Flask(__name__)
-client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 # ── Shared nutrition prompt structure ─────────────────────────────────────────
 
@@ -98,26 +98,27 @@ def analyze_image():
 Identify every food item visible, estimate portion sizes, and calculate nutrition.
 {NUTRITION_SCHEMA}"""
 
-        response = client.messages.create(
-            model="claude-opus-4-5",
+        response = client.chat.completions.create(
+            model="gpt-4o",
             max_tokens=1200,
             messages=[{
                 "role": "user",
                 "content": [
                     {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": media_type,
-                            "data": b64
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:{media_type};base64,{b64}"
                         }
                     },
-                    {"type": "text", "text": prompt}
+                    {
+                        "type": "text",
+                        "text": prompt
+                    }
                 ]
             }]
         )
 
-        data = parse_nutrition_response(response.content[0].text)
+        data = parse_nutrition_response(response.choices[0].message.content)
         data["meal_slot"] = get_meal_slot()
         data["time"] = datetime.now().strftime("%I:%M %p")
         data["id"] = str(int(datetime.now().timestamp() * 1000))
@@ -145,8 +146,8 @@ The user is describing a meal they just ate: "{food_description}"
 Identify all likely components, estimate a standard serving portion, and calculate full nutrition.
 {NUTRITION_SCHEMA}"""
 
-        response = client.messages.create(
-            model="claude-opus-4-5",
+        response = client.chat.completions.create(
+            model="gpt-4o",
             max_tokens=1200,
             messages=[{
                 "role": "user",
@@ -154,7 +155,7 @@ Identify all likely components, estimate a standard serving portion, and calcula
             }]
         )
 
-        data = parse_nutrition_response(response.content[0].text)
+        data = parse_nutrition_response(response.choices[0].message.content)
         data["meal_slot"] = get_meal_slot()
         data["time"] = datetime.now().strftime("%I:%M %p")
         data["id"] = str(int(datetime.now().timestamp() * 1000))
