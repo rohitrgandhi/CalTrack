@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0a0a">
+<title>NutriTrack</title>
+<style>
+/* ── Reset & Base ─────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html { height: 100%; font-size: 16px; }
+body {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+  background: #0a0a0a;
+  color: #f0f0f0;
+  overflow: hidden;
+}
+
+/* ── Design tokens ────────────────────────────────────────────── */
+:root {
+  --green: #00c878;
+  --green-dim: rgba(0,200,120,0.12);
+  --green-border: rgba(0,200,120,0.3);
+  --surface: #161616;
+  --surface2: #1f1f1f;
+  --surface3: #2a2a2a;
+  --border: rgba(255,255,255,0.08);
+  --text: #f0f0f0;
+  --muted: #888;
+  --danger: #ff5c5c;
+  --amber: #ffb340;
+  --blue: #4da6ff;
+  --pink: #ff6eb4;
+}
+
+/* ── Screens ──────────────────────────────────────────────────── */
+.screen {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.25s ease;
+  overflow: hidden;
+}
+.screen.active {
+  opacity: 1; pointer-events: all;
+}
+
+/* ── Scrollable body within screen ───────────────────────────── */
+.screen-body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 20px 16px 40px;
+}
+
+/* ── Top bar ──────────────────────────────────────────────────── */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 54px 20px 16px;
+  background: #0a0a0a;
+  flex-shrink: 0;
+}
+.topbar-title { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+.topbar-sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.topbar-date { font-size: 13px; color: var(--muted); text-align: right; }
+
+/* ── Bottom nav ───────────────────────────────────────────────── */
+.bottom-nav {
+  display: flex;
+  background: #0f0f0f;
+  border-top: 0.5px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom, 12px);
+  flex-shrink: 0;
+}
+.nav-item {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 10px 0 6px; gap: 4px;
+  border: none; background: none; cursor: pointer;
+  color: #555; font-size: 11px; font-weight: 600;
+  transition: color 0.15s;
+}
+.nav-item.active { color: var(--green); }
+.nav-icon { font-size: 22px; line-height: 1; }
+
+/* ── Cards ────────────────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: 18px;
+  padding: 18px;
+  margin-bottom: 12px;
+}
+.card-label {
+  font-size: 11px; font-weight: 700;
+  color: var(--muted); text-transform: uppercase;
+  letter-spacing: 0.07em; margin-bottom: 14px;
+}
+
+/* ── Buttons ──────────────────────────────────────────────────── */
+.btn {
+  width: 100%; padding: 15px;
+  border: none; border-radius: 14px;
+  font-size: 16px; font-weight: 700;
+  cursor: pointer; transition: transform 0.1s, opacity 0.15s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn:active { transform: scale(0.97); opacity: 0.9; }
+.btn-green { background: var(--green); color: #000; }
+.btn-ghost { background: var(--surface3); color: var(--text); margin-top: 10px; }
+.btn-danger { background: rgba(255,92,92,0.15); color: var(--danger); margin-top: 10px; border: 0.5px solid rgba(255,92,92,0.3); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+/* ═══════════════════════════════════════════════════════════════
+   SCREEN 1 — HOME / LOG
+═══════════════════════════════════════════════════════════════ */
+
+/* Day nav */
+.day-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 0 16px;
+}
+.day-arrow {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: var(--surface2); border: 0.5px solid var(--border);
+  font-size: 20px; color: var(--text); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s;
+}
+.day-arrow:active { background: var(--surface3); }
+.day-label { font-size: 17px; font-weight: 700; }
+
+/* Summary strip */
+.summary-strip {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 10px; margin-bottom: 16px;
+}
+.sum-tile {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: 16px; padding: 14px 16px;
+}
+.sum-val { font-size: 26px; font-weight: 800; color: var(--text); letter-spacing: -0.5px; }
+.sum-lbl { font-size: 12px; color: var(--muted); margin-top: 3px; font-weight: 500; }
+
+/* Calorie ring tile — spans full width */
+.cal-tile {
+  grid-column: 1 / -1;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: 16px; padding: 18px 20px;
+  display: flex; align-items: center; gap: 18px;
+}
+.cal-ring-wrap { position: relative; width: 72px; height: 72px; flex-shrink: 0; }
+.cal-ring-wrap svg { transform: rotate(-90deg); }
+.cal-ring-bg { fill: none; stroke: var(--surface3); stroke-width: 6; }
+.cal-ring-fill { fill: none; stroke: var(--green); stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset 0.7s ease; }
+.cal-ring-text { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.cal-ring-num { font-size: 14px; font-weight: 800; color: var(--text); line-height: 1; }
+.cal-ring-unit { font-size: 9px; color: var(--muted); font-weight: 600; }
+.cal-tile-info { flex: 1; }
+.cal-tile-label { font-size: 13px; color: var(--muted); font-weight: 600; }
+.cal-tile-eaten { font-size: 22px; font-weight: 800; color: var(--text); margin: 2px 0; }
+.cal-tile-remain { font-size: 13px; color: var(--green); font-weight: 600; }
+
+/* Meals */
+.meals-title { font-size: 15px; font-weight: 700; color: var(--muted); margin-bottom: 10px; }
+.meal-card {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: 18px; padding: 16px;
+  margin-bottom: 10px;
+}
+.meal-slot { font-size: 11px; font-weight: 700; color: var(--green); text-transform: uppercase; letter-spacing: 0.06em; }
+.meal-name { font-size: 17px; font-weight: 700; margin: 4px 0 6px; color: var(--text); }
+.meal-items { font-size: 13px; color: var(--muted); line-height: 1.5; margin-bottom: 12px; }
+.meal-macros { display: flex; gap: 8px; flex-wrap: wrap; }
+.macro-chip {
+  font-size: 12px; font-weight: 700; padding: 4px 10px;
+  border-radius: 20px; white-space: nowrap;
+}
+.chip-cal { background: rgba(255,179,64,0.15); color: var(--amber); }
+.chip-pro { background: rgba(77,166,255,0.15); color: var(--blue); }
+.chip-carb { background: rgba(255,110,180,0.12); color: var(--pink); }
+.chip-fib { background: rgba(0,200,120,0.12); color: var(--green); }
+.chip-fat { background: rgba(255,92,92,0.12); color: var(--danger); }
+
+.meal-vit-toggle {
+  margin-top: 12px; padding: 0; background: none; border: none;
+  font-size: 12px; font-weight: 700; color: var(--muted); cursor: pointer;
+  display: flex; align-items: center; gap: 4px;
+}
+.vit-panel { display: none; margin-top: 10px; border-top: 0.5px solid var(--border); padding-top: 10px; }
+.vit-panel.open { display: block; }
+.vit-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 0.5px solid var(--border); }
+.vit-row:last-child { border: none; }
+.vit-name { font-size: 13px; color: var(--muted); }
+.vit-val { font-size: 13px; font-weight: 700; color: var(--text); }
+
+.snap-cta {
+  width: 100%; padding: 18px;
+  background: var(--green-dim);
+  border: 1.5px dashed var(--green-border);
+  border-radius: 18px; margin-top: 6px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  color: var(--green); font-size: 16px; font-weight: 700;
+  cursor: pointer;
+}
+
+.empty-state {
+  text-align: center; padding: 48px 20px;
+  color: var(--muted); font-size: 15px; line-height: 1.6;
+}
+.empty-icon { font-size: 56px; margin-bottom: 14px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   SCREEN 2 — SNAP
+═══════════════════════════════════════════════════════════════ */
+
+.snap-stage {
+  flex: 1; display: flex; flex-direction: column;
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: 20px 16px 40px;
+}
+
+/* Upload zone */
+.upload-zone {
+  border: 2px dashed var(--green-border);
+  border-radius: 22px; padding: 48px 24px;
+  text-align: center; cursor: pointer;
+  background: var(--green-dim);
+  transition: background 0.2s;
+  margin-bottom: 16px;
+}
+.upload-zone:active { background: rgba(0,200,120,0.2); }
+.upload-icon { font-size: 60px; margin-bottom: 12px; line-height: 1; }
+.upload-title { font-size: 18px; font-weight: 700; color: var(--green); }
+.upload-sub { font-size: 14px; color: var(--muted); margin-top: 6px; }
+
+/* Preview */
+.photo-preview {
+  width: 100%; border-radius: 18px;
+  object-fit: cover; max-height: 280px;
+  display: none; margin-bottom: 16px;
+}
+
+/* Analyzing spinner */
+.analyzing-box {
+  display: none;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: 18px; padding: 24px;
+  text-align: center; margin-bottom: 16px;
+}
+.analyzing-box.show { display: block; }
+.spinner {
+  width: 40px; height: 40px; margin: 0 auto 14px;
+  border: 3px solid var(--surface3);
+  border-top-color: var(--green);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.analyzing-label { font-size: 15px; font-weight: 700; color: var(--text); }
+.analyzing-sub { font-size: 13px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+
+/* Result card */
+.result-box {
+  display: none;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: 18px; padding: 20px;
+  margin-bottom: 12px;
+}
+.result-box.show { display: block; }
+
+.result-name { font-size: 20px; font-weight: 800; color: var(--text); }
+.result-items { font-size: 13px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+.confidence-badge {
+  display: inline-block; margin-top: 8px;
+  font-size: 11px; font-weight: 700; padding: 3px 10px;
+  border-radius: 20px; text-transform: uppercase; letter-spacing: 0.05em;
+}
+.conf-high { background: rgba(0,200,120,0.15); color: var(--green); }
+.conf-medium { background: rgba(255,179,64,0.15); color: var(--amber); }
+.conf-low { background: rgba(255,92,92,0.15); color: var(--danger); }
+
+.macros-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 8px; margin: 16px 0;
+}
+.macro-tile {
+  background: var(--surface2);
+  border: 0.5px solid var(--border);
+  border-radius: 14px; padding: 12px 14px;
+}
+.macro-tile-val { font-size: 22px; font-weight: 800; color: var(--text); }
+.macro-tile-lbl { font-size: 11px; color: var(--muted); margin-top: 3px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+.macro-tile.full { grid-column: 1 / -1; }
+
+.vit-section { margin-top: 4px; border-top: 0.5px solid var(--border); padding-top: 14px; }
+.vit-section-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 10px; }
+
+/* Result notes */
+.result-notes { font-size: 12px; color: var(--muted); margin-top: 10px; font-style: italic; line-height: 1.5; }
+
+/* Edit panel */
+.edit-panel {
+  display: none;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: 18px; padding: 20px;
+  margin-bottom: 12px;
+}
+.edit-panel.show { display: block; }
+.edit-title { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+.edit-desc { font-size: 14px; color: var(--muted); margin-bottom: 16px; line-height: 1.5; }
+.edit-input {
+  width: 100%; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: 12px;
+  padding: 14px 16px; font-size: 16px; color: var(--text);
+  outline: none; transition: border-color 0.2s;
+  -webkit-appearance: none;
+}
+.edit-input:focus { border-color: var(--green); }
+.edit-input::placeholder { color: var(--muted); }
+
+/* Error */
+.error-box {
+  display: none;
+  background: rgba(255,92,92,0.08);
+  border: 0.5px solid rgba(255,92,92,0.3);
+  border-radius: 14px; padding: 16px;
+  margin-bottom: 12px;
+}
+.error-box.show { display: block; }
+.error-title { font-size: 15px; font-weight: 700; color: var(--danger); margin-bottom: 4px; }
+.error-msg { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+/* Action buttons area */
+.action-area { display: flex; flex-direction: column; gap: 0; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SCREEN: LOG (Home)
+════════════════════════════════════════════════════════════ -->
+<div class="screen active" id="screen-log">
+  <div class="topbar">
+    <div>
+      <div class="topbar-title">NutriTrack</div>
+      <div class="topbar-sub">Your daily food log</div>
+    </div>
+    <div class="topbar-date" id="topbar-date"></div>
+  </div>
+
+  <div class="screen-body">
+    <!-- Day navigation -->
+    <div class="day-nav">
+      <button class="day-arrow" onclick="changeDay(-1)">‹</button>
+      <span class="day-label" id="day-label">Today</span>
+      <button class="day-arrow" onclick="changeDay(1)">›</button>
+    </div>
+
+    <!-- Calorie ring + summary -->
+    <div class="summary-strip">
+      <div class="cal-tile">
+        <div class="cal-ring-wrap">
+          <svg width="72" height="72" viewBox="0 0 72 72">
+            <circle class="cal-ring-bg" cx="36" cy="36" r="30"/>
+            <circle class="cal-ring-fill" id="ring-fill" cx="36" cy="36" r="30"
+              stroke-dasharray="188.5" stroke-dashoffset="188.5"/>
+          </svg>
+          <div class="cal-ring-text">
+            <div class="cal-ring-num" id="ring-pct">0%</div>
+            <div class="cal-ring-unit">goal</div>
+          </div>
+        </div>
+        <div class="cal-tile-info">
+          <div class="cal-tile-label">Calories eaten</div>
+          <div class="cal-tile-eaten"><span id="s-cal">0</span> <span style="font-size:14px;color:var(--muted);font-weight:600;">kcal</span></div>
+          <div class="cal-tile-remain" id="s-remain">— kcal remaining</div>
+        </div>
+      </div>
+      <div class="sum-tile">
+        <div class="sum-val" id="s-pro">0g</div>
+        <div class="sum-lbl">Protein</div>
+      </div>
+      <div class="sum-tile">
+        <div class="sum-val" id="s-carb">0g</div>
+        <div class="sum-lbl">Carbs</div>
+      </div>
+      <div class="sum-tile">
+        <div class="sum-val" id="s-fat">0g</div>
+        <div class="sum-lbl">Fat</div>
+      </div>
+      <div class="sum-tile">
+        <div class="sum-val" id="s-fib">0g</div>
+        <div class="sum-lbl">Fiber</div>
+      </div>
+    </div>
+
+    <!-- Meals list -->
+    <div id="meals-container"></div>
+
+    <!-- Snap CTA -->
+    <button class="snap-cta" onclick="goToSnap()">
+      <span>📷</span> Snap & log food
+    </button>
+  </div>
+
+  <nav class="bottom-nav">
+    <button class="nav-item active" id="nav-log" onclick="showScreen('log')">
+      <span class="nav-icon">📋</span>Log
+    </button>
+    <button class="nav-item" id="nav-snap" onclick="goToSnap()">
+      <span class="nav-icon">📷</span>Snap
+    </button>
+  </nav>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SCREEN: SNAP
+════════════════════════════════════════════════════════════ -->
+<div class="screen" id="screen-snap">
+  <div class="topbar">
+    <div>
+      <div class="topbar-title">Log Food</div>
+      <div class="topbar-sub">Snap a photo to analyze</div>
+    </div>
+    <button onclick="showScreen('log')" style="background:var(--surface2);border:0.5px solid var(--border);color:var(--text);border-radius:20px;padding:8px 16px;font-size:14px;font-weight:700;cursor:pointer;">Done</button>
+  </div>
+
+  <div class="snap-stage">
+    <!-- Hidden file input -->
+    <input type="file" id="file-input" accept="image/*" capture="environment"
+      style="display:none" onchange="onPhotoSelected(event)">
+
+    <!-- Upload zone (default state) -->
+    <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+      <div class="upload-icon">📷</div>
+      <div class="upload-title">Take a photo</div>
+      <div class="upload-sub">or tap to choose from your gallery</div>
+    </div>
+
+    <!-- Photo preview -->
+    <img class="photo-preview" id="photo-preview" alt="Food photo">
+
+    <!-- Analyzing state -->
+    <div class="analyzing-box" id="analyzing-box">
+      <div class="spinner"></div>
+      <div class="analyzing-label">Analyzing your food…</div>
+      <div class="analyzing-sub">Identifying items, estimating portions,<br>calculating nutrition values</div>
+    </div>
+
+    <!-- Error state -->
+    <div class="error-box" id="error-box">
+      <div class="error-title">Something went wrong</div>
+      <div class="error-msg" id="error-msg">Please try again.</div>
+    </div>
+
+    <!-- Result -->
+    <div class="result-box" id="result-box">
+      <div class="result-name" id="res-name">—</div>
+      <div class="result-items" id="res-items"></div>
+      <span class="confidence-badge" id="res-conf"></span>
+
+      <div class="macros-grid" id="macros-grid"></div>
+
+      <div class="vit-section" id="vit-section" style="display:none;">
+        <div class="vit-section-title">Vitamins & Minerals</div>
+        <div id="vit-rows"></div>
+      </div>
+
+      <div class="result-notes" id="res-notes"></div>
+    </div>
+
+    <!-- Edit panel (wrong food) -->
+    <div class="edit-panel" id="edit-panel">
+      <div class="edit-title">What did you actually eat?</div>
+      <div class="edit-desc">Type the correct food or meal name. Be as specific as you can — Claude will re-calculate everything.</div>
+      <input type="text" class="edit-input" id="edit-input"
+        placeholder="e.g. Upma with coconut chutney and papad"
+        onkeydown="if(event.key==='Enter') reanalyzeText()">
+    </div>
+
+    <!-- Action buttons -->
+    <div class="action-area" id="action-area" style="display:none;">
+      <!-- State: after image analysis -->
+      <div id="actions-result" style="display:none;">
+        <button class="btn btn-green" onclick="logEntry()">✓ Log this meal</button>
+        <button class="btn btn-ghost" onclick="showEditPanel()">✏️ Wrong food? Correct it</button>
+        <button class="btn btn-danger" onclick="resetSnap()">✕ Discard & retake</button>
+      </div>
+      <!-- State: in edit mode -->
+      <div id="actions-edit" style="display:none;">
+        <button class="btn btn-green" onclick="reanalyzeText()">Re-analyze with correction</button>
+        <button class="btn btn-ghost" onclick="cancelEdit()">↩ Back to original result</button>
+      </div>
+    </div>
+
+  </div>
+
+  <nav class="bottom-nav">
+    <button class="nav-item" id="nav-log2" onclick="showScreen('log')">
+      <span class="nav-icon">📋</span>Log
+    </button>
+    <button class="nav-item active" id="nav-snap2" onclick="goToSnap()">
+      <span class="nav-icon">📷</span>Snap
+    </button>
+  </nav>
+</div>
+
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+const GOAL_CAL = 2000; // simple default — we'll add personalisation later
+let dayOffset = 0;
+let logs = JSON.parse(localStorage.getItem('nt_logs_v2') || '{}');
+let currentData = null; // holds the AI result being reviewed
+
+function saveLogs() {
+  localStorage.setItem('nt_logs_v2', JSON.stringify(logs));
+}
+
+// ── Date helpers ───────────────────────────────────────────────────────────
+function getDayKey(offset) {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  return d.toISOString().split('T')[0];
+}
+
+function getDayLabel(offset) {
+  if (offset === 0) return 'Today';
+  if (offset === -1) return 'Yesterday';
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+}
+
+function formatTopbarDate() {
+  return new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+// ── Screen navigation ──────────────────────────────────────────────────────
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+
+  // nav highlighting
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  if (name === 'log') {
+    document.getElementById('nav-log').classList.add('active');
+    document.getElementById('nav-log2').classList.add('active');
+    renderLog();
+  }
+  if (name === 'snap') {
+    document.getElementById('nav-snap').classList.add('active');
+    document.getElementById('nav-snap2').classList.add('active');
+  }
+}
+
+function goToSnap() {
+  showScreen('snap');
+}
+
+// ── Day navigation ─────────────────────────────────────────────────────────
+function changeDay(d) {
+  dayOffset += d;
+  if (dayOffset > 0) dayOffset = 0;
+  document.getElementById('day-label').textContent = getDayLabel(dayOffset);
+  renderLog();
+}
+
+// ── Totals ─────────────────────────────────────────────────────────────────
+function getTotals(key) {
+  return (logs[key] || []).reduce((acc, e) => ({
+    cal: acc.cal + (e.calories || 0),
+    pro: acc.pro + (e.protein || 0),
+    carb: acc.carb + (e.carbs || 0),
+    fat: acc.fat + (e.fat || 0),
+    fib: acc.fib + (e.fiber || 0),
+  }), { cal: 0, pro: 0, carb: 0, fat: 0, fib: 0 });
+}
+
+// ── Render log screen ──────────────────────────────────────────────────────
+function renderLog() {
+  const key = getDayKey(dayOffset);
+  const entries = logs[key] || [];
+  const t = getTotals(key);
+
+  // Summary tiles
+  document.getElementById('s-cal').textContent = t.cal;
+  document.getElementById('s-pro').textContent = t.pro + 'g';
+  document.getElementById('s-carb').textContent = t.carb + 'g';
+  document.getElementById('s-fat').textContent = t.fat + 'g';
+  document.getElementById('s-fib').textContent = t.fib + 'g';
+
+  // Calorie ring
+  const pct = Math.min(1, t.cal / GOAL_CAL);
+  const circ = 188.5;
+  document.getElementById('ring-fill').style.strokeDashoffset = circ - (circ * pct);
+  document.getElementById('ring-pct').textContent = Math.round(pct * 100) + '%';
+  const rem = GOAL_CAL - t.cal;
+  document.getElementById('s-remain').textContent =
+    rem >= 0 ? `${rem} kcal remaining` : `${Math.abs(rem)} kcal over goal`;
+  document.getElementById('s-remain').style.color = rem >= 0 ? 'var(--green)' : 'var(--danger)';
+
+  // Meals
+  const container = document.getElementById('meals-container');
+  if (!entries.length) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🍽️</div>
+        <p>Nothing logged yet.<br>Tap <strong style="color:var(--green)">Snap</strong> to photograph your meal.</p>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = entries.map((e, idx) => {
+    const vitEntries = buildVitEntries(e);
+    return `
+    <div class="meal-card">
+      <div class="meal-slot">${e.meal_slot} · ${e.time}</div>
+      <div class="meal-name">${e.name}</div>
+      ${e.items && e.items.length ? `<div class="meal-items">${Array.isArray(e.items) ? e.items.join(', ') : e.items}</div>` : ''}
+      <div class="meal-macros">
+        <span class="macro-chip chip-cal">${e.calories} kcal</span>
+        <span class="macro-chip chip-pro">${e.protein}g protein</span>
+        <span class="macro-chip chip-carb">${e.carbs}g carbs</span>
+        <span class="macro-chip chip-fib">${e.fiber}g fiber</span>
+        <span class="macro-chip chip-fat">${e.fat}g fat</span>
+      </div>
+      ${vitEntries.length ? `
+        <button class="meal-vit-toggle" onclick="toggleVitPanel(${idx})">
+          <span id="vit-arrow-${idx}">▸</span> Vitamins & Minerals
+        </button>
+        <div class="vit-panel" id="vit-panel-${idx}">
+          ${vitEntries.map(([k,v]) => `<div class="vit-row"><span class="vit-name">${k}</span><span class="vit-val">${v}</span></div>`).join('')}
+        </div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function buildVitEntries(e) {
+  const labels = {
+    vitamin_a:'Vitamin A', vitamin_c:'Vitamin C', vitamin_d:'Vitamin D',
+    vitamin_b12:'Vitamin B12', vitamin_b6:'Vitamin B6', folate:'Folate',
+    iron:'Iron', calcium:'Calcium', potassium:'Potassium',
+    magnesium:'Magnesium', zinc:'Zinc', sodium:'Sodium'
+  };
+  const all = { ...(e.vitamins || {}), ...(e.minerals || {}) };
+  return Object.entries(all)
+    .filter(([, v]) => v && v !== 'null')
+    .map(([k, v]) => [labels[k] || k, v]);
+}
+
+function toggleVitPanel(idx) {
+  const panel = document.getElementById('vit-panel-' + idx);
+  const arrow = document.getElementById('vit-arrow-' + idx);
+  panel.classList.toggle('open');
+  arrow.textContent = panel.classList.contains('open') ? '▾' : '▸';
+}
+
+// ── SNAP: Photo selected ───────────────────────────────────────────────────
+function onPhotoSelected(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  // Show preview
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const preview = document.getElementById('photo-preview');
+    preview.src = e.target.result;
+    preview.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+
+  // Hide upload zone, start analysis
+  document.getElementById('upload-zone').style.display = 'none';
+  hideAllSnapStates();
+  document.getElementById('analyzing-box').classList.add('show');
+
+  analyzeImage(file);
+}
+
+function hideAllSnapStates() {
+  document.getElementById('analyzing-box').classList.remove('show');
+  document.getElementById('result-box').classList.remove('show');
+  document.getElementById('edit-panel').classList.remove('show');
+  document.getElementById('error-box').classList.remove('show');
+  document.getElementById('action-area').style.display = 'none';
+  document.getElementById('actions-result').style.display = 'none';
+  document.getElementById('actions-edit').style.display = 'none';
+}
+
+// ── SNAP: Analyze image via server ─────────────────────────────────────────
+async function analyzeImage(file) {
+  const formData = new FormData();
+  formData.append('image', file);
+
+  try {
+    const res = await fetch('/analyze-image', { method: 'POST', body: formData });
+    const json = await res.json();
+
+    document.getElementById('analyzing-box').classList.remove('show');
+
+    if (!res.ok || json.error) throw new Error(json.error || 'Analysis failed');
+
+    currentData = json.data;
+    showResult(currentData);
+  } catch (err) {
+    document.getElementById('analyzing-box').classList.remove('show');
+    document.getElementById('error-box').classList.add('show');
+    document.getElementById('error-msg').textContent = err.message + '. Please try again with a clearer photo.';
+    document.getElementById('action-area').style.display = 'flex';
+    document.getElementById('actions-result').style.display = 'none';
+    // Show just the retake button
+    document.getElementById('action-area').innerHTML = `
+      <button class="btn btn-ghost" onclick="resetSnap()">↩ Try a different photo</button>`;
+  }
+}
+
+// ── SNAP: Show result ──────────────────────────────────────────────────────
+function showResult(d) {
+  document.getElementById('res-name').textContent = d.name;
+  document.getElementById('res-items').textContent =
+    Array.isArray(d.items) ? d.items.join(' · ') : (d.items || '');
+
+  // Confidence badge
+  const confEl = document.getElementById('res-conf');
+  confEl.textContent = d.confidence + ' confidence';
+  confEl.className = 'confidence-badge conf-' + d.confidence;
+
+  // Macros grid
+  document.getElementById('macros-grid').innerHTML = `
+    <div class="macro-tile full" style="background:rgba(255,179,64,0.08);border-color:rgba(255,179,64,0.2);">
+      <div class="macro-tile-val" style="color:var(--amber)">${d.calories}</div>
+      <div class="macro-tile-lbl">Calories (kcal)</div>
+    </div>
+    <div class="macro-tile"><div class="macro-tile-val" style="color:var(--blue)">${d.protein}g</div><div class="macro-tile-lbl">Protein</div></div>
+    <div class="macro-tile"><div class="macro-tile-val" style="color:var(--pink)">${d.carbs}g</div><div class="macro-tile-lbl">Carbs</div></div>
+    <div class="macro-tile"><div class="macro-tile-val" style="color:var(--green)">${d.fiber}g</div><div class="macro-tile-lbl">Fiber</div></div>
+    <div class="macro-tile"><div class="macro-tile-val" style="color:var(--danger)">${d.fat}g</div><div class="macro-tile-lbl">Fat</div></div>`;
+
+  // Vitamins & minerals
+  const vitEntries = buildVitEntries(d);
+  if (vitEntries.length) {
+    document.getElementById('vit-section').style.display = 'block';
+    document.getElementById('vit-rows').innerHTML = vitEntries
+      .map(([k, v]) => `<div class="vit-row"><span class="vit-name">${k}</span><span class="vit-val">${v}</span></div>`)
+      .join('');
+  } else {
+    document.getElementById('vit-section').style.display = 'none';
+  }
+
+  // Notes
+  document.getElementById('res-notes').textContent = d.notes || '';
+
+  document.getElementById('result-box').classList.add('show');
+  document.getElementById('action-area').style.display = 'flex';
+  document.getElementById('actions-result').style.display = 'block';
+  document.getElementById('actions-edit').style.display = 'none';
+  document.getElementById('edit-panel').classList.remove('show');
+}
+
+// ── SNAP: Edit / correct food ──────────────────────────────────────────────
+function showEditPanel() {
+  document.getElementById('edit-panel').classList.add('show');
+  document.getElementById('actions-result').style.display = 'none';
+  document.getElementById('actions-edit').style.display = 'block';
+  document.getElementById('edit-input').value = '';
+  document.getElementById('edit-input').focus();
+  // scroll down a bit so keyboard doesn't cover input
+  setTimeout(() => document.getElementById('edit-input').scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
+}
+
+function cancelEdit() {
+  document.getElementById('edit-panel').classList.remove('show');
+  document.getElementById('actions-edit').style.display = 'none';
+  document.getElementById('actions-result').style.display = 'block';
+}
+
+async function reanalyzeText() {
+  const food = document.getElementById('edit-input').value.trim();
+  if (!food) {
+    document.getElementById('edit-input').placeholder = 'Please describe the food first…';
+    return;
+  }
+
+  // Show analyzing state
+  document.getElementById('edit-panel').classList.remove('show');
+  document.getElementById('actions-edit').style.display = 'none';
+  document.getElementById('result-box').classList.remove('show');
+  document.getElementById('action-area').style.display = 'none';
+  document.getElementById('analyzing-box').classList.add('show');
+  document.getElementById('analyzing-box').querySelector('.analyzing-label').textContent = 'Re-analyzing…';
+  document.getElementById('analyzing-box').querySelector('.analyzing-sub').textContent =
+    `Looking up nutrition for: "${food}"`;
+
+  try {
+    const res = await fetch('/analyze-text', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ food })
+    });
+    const json = await res.json();
+
+    document.getElementById('analyzing-box').classList.remove('show');
+    document.getElementById('analyzing-box').querySelector('.analyzing-label').textContent = 'Analyzing your food…';
+    document.getElementById('analyzing-box').querySelector('.analyzing-sub').textContent = 'Identifying items, estimating portions,\ncalculating nutrition values';
+
+    if (!res.ok || json.error) throw new Error(json.error || 'Re-analysis failed');
+
+    currentData = json.data;
+    showResult(currentData);
+  } catch (err) {
+    document.getElementById('analyzing-box').classList.remove('show');
+    document.getElementById('error-box').classList.add('show');
+    document.getElementById('error-msg').textContent = err.message;
+    document.getElementById('action-area').style.display = 'flex';
+    document.getElementById('action-area').innerHTML = `
+      <button class="btn btn-ghost" onclick="resetSnap()">↩ Start over</button>`;
+  }
+}
+
+// ── SNAP: Log entry ────────────────────────────────────────────────────────
+function logEntry() {
+  if (!currentData) return;
+  const key = getDayKey(0); // always log to today
+  if (!logs[key]) logs[key] = [];
+  logs[key].push({ ...currentData, logged_at: new Date().toISOString() });
+  saveLogs();
+
+  // Reset snap screen and go home
+  resetSnap();
+  showScreen('log');
+}
+
+// ── SNAP: Reset ────────────────────────────────────────────────────────────
+function resetSnap() {
+  currentData = null;
+  document.getElementById('photo-preview').style.display = 'none';
+  document.getElementById('photo-preview').src = '';
+  document.getElementById('upload-zone').style.display = 'block';
+  document.getElementById('file-input').value = '';
+  hideAllSnapStates();
+  document.getElementById('action-area').style.display = 'none';
+  // restore action area HTML in case it was replaced
+  document.getElementById('action-area').innerHTML = `
+    <div id="actions-result" style="display:none;">
+      <button class="btn btn-green" onclick="logEntry()">✓ Log this meal</button>
+      <button class="btn btn-ghost" onclick="showEditPanel()">✏️ Wrong food? Correct it</button>
+      <button class="btn btn-danger" onclick="resetSnap()">✕ Discard & retake</button>
+    </div>
+    <div id="actions-edit" style="display:none;">
+      <button class="btn btn-green" onclick="reanalyzeText()">Re-analyze with correction</button>
+      <button class="btn btn-ghost" onclick="cancelEdit()">↩ Back to original result</button>
+    </div>`;
+}
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+document.getElementById('topbar-date').textContent = formatTopbarDate();
+renderLog();
+</script>
+</body>
+</html>
