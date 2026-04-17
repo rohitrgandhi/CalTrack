@@ -247,17 +247,8 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text'
 /* result card */
 .ob-result{background:linear-gradient(135deg,rgba(0,200,120,.15),rgba(0,200,120,.05));border:.5px solid var(--green-border);border-radius:20px;padding:22px;margin-bottom:14px;text-align:center;display:none;}
 .ob-result.show{display:block;}
-.ob-result-kcal{font-size:52px;font-weight:800;color:var(--green);line-height:1;}
 .ob-result-label{font-size:13px;color:var(--muted);margin-top:4px;font-weight:600;}
 .ob-result-note{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5;}
-.ob-macro-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px;}
-.ob-macro-tile{background:rgba(0,0,0,.25);border-radius:12px;padding:10px;}
-.ob-macro-val{font-size:18px;font-weight:800;color:var(--text);}
-.ob-macro-lbl{font-size:10px;color:var(--muted);margin-top:2px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;}
-.ob-bmi-row{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:14px;padding-top:14px;border-top:.5px solid var(--green-border);}
-.ob-bmi-item{text-align:center;}
-.ob-bmi-val{font-size:18px;font-weight:800;color:var(--text);}
-.ob-bmi-lbl{font-size:10px;color:var(--muted);font-weight:700;margin-top:2px;}
 .ob-btn{width:100%;padding:15px;border:none;border-radius:14px;font-size:16px;font-weight:800;cursor:pointer;margin-top:4px;transition:transform .1s,opacity .15s;}
 .ob-btn:active{transform:scale(.97);opacity:.88;}
 .ob-btn-calc{background:var(--surface3);color:var(--text);border:.5px solid var(--border);margin-bottom:10px;}
@@ -267,6 +258,28 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text'
 .ob-dot{width:8px;height:8px;border-radius:50%;background:var(--surface3);}
 .ob-dot.active{background:var(--green);}
 
+
+.ob-goal-cards{display:flex;flex-direction:column;gap:9px;margin-bottom:12px;}
+.ob-goal-card{border-radius:14px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;}
+.ob-goal-card.lose{background:rgba(77,166,255,0.09);border:.5px solid rgba(77,166,255,0.25);}
+.ob-goal-card.maintain{background:rgba(0,200,120,0.1);border:.5px solid rgba(0,200,120,0.28);}
+.ob-goal-card.gain{background:rgba(255,110,180,0.09);border:.5px solid rgba(255,110,180,0.22);}
+.ob-gc-left{text-align:left;}
+.ob-gc-icon{font-size:18px;margin-bottom:4px;}
+.ob-gc-label{font-size:13px;font-weight:800;color:var(--text);}
+.ob-gc-sub{font-size:11px;color:var(--muted);margin-top:2px;line-height:1.4;}
+.ob-gc-right{text-align:right;}
+.ob-gc-kcal{font-size:28px;font-weight:800;line-height:1;}
+.ob-goal-card.lose .ob-gc-kcal{color:#4da6ff;}
+.ob-goal-card.maintain .ob-gc-kcal{color:var(--green);}
+.ob-goal-card.gain .ob-gc-kcal{color:#ff6eb4;}
+.ob-goal-card.selected{outline:2.5px solid var(--green);outline-offset:2px;}
+.ob-goal-card.selected::after{content:'✓ Selected';font-size:10px;font-weight:800;color:var(--green);position:absolute;top:8px;right:12px;}
+.ob-goal-card{position:relative;}
+.ob-start-hint{font-size:13px;color:var(--muted);text-align:center;margin-bottom:10px;display:none;}
+.ob-start-hint.show{display:block;}
+.ob-gc-unit{font-size:11px;color:var(--muted);margin-top:2px;font-weight:600;}
+.ob-disclaimer{background:rgba(255,179,64,0.07);border:.5px solid rgba(255,179,64,0.22);border-radius:14px;padding:14px 16px;font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:14px;}
 </style>
 </head>
 <body>
@@ -362,19 +375,14 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text'
 
   <!-- Result card -->
   <div class="ob-result" id="ob-result">
-    <div class="ob-result-kcal" id="ob-kcal">—</div>
-    <div class="ob-result-label">daily calorie goal (kcal)</div>
-    <div class="ob-macro-row">
-      <div class="ob-macro-tile"><div class="ob-macro-val" id="ob-pro">—</div><div class="ob-macro-lbl">Protein g</div></div>
-      <div class="ob-macro-tile"><div class="ob-macro-val" id="ob-carb">—</div><div class="ob-macro-lbl">Carbs g</div></div>
-      <div class="ob-macro-tile"><div class="ob-macro-val" id="ob-fat">—</div><div class="ob-macro-lbl">Fat g</div></div>
-    </div>
-    <div class="ob-bmi-row">
-      <div class="ob-bmi-item"><div class="ob-bmi-val" id="ob-bmi">—</div><div class="ob-bmi-lbl">BMI</div></div>
-      <div class="ob-bmi-item"><div class="ob-bmi-val" id="ob-bmr">—</div><div class="ob-bmi-lbl">BMR kcal</div></div>
-      <div class="ob-bmi-item"><div class="ob-bmi-val" id="ob-fiber">—</div><div class="ob-bmi-lbl">Fiber g</div></div>
-    </div>
+    <div style="font-size:13px;font-weight:700;color:var(--muted);margin-bottom:14px;text-transform:uppercase;letter-spacing:.06em;">Your daily calorie targets</div>
+    <div id="ob-goal-cards"></div>
     <div class="ob-result-note" id="ob-result-note"></div>
+  </div>
+
+  <!-- Disclaimer -->
+  <div class="ob-disclaimer">
+    ⚠️ These numbers are directional estimates based on standard formulas. They may not be accurate for everyone. This app is designed to help you build the habit of tracking — not to replace medical or nutritional advice.
   </div>
 
   <button class="ob-btn ob-btn-start" id="ob-start-btn" disabled onclick="obFinish()">
@@ -1192,22 +1200,74 @@ function obCalculate() {
   const bmi = (wt / ((ht/100)**2)).toFixed(1);
   const bmiCat = bmi<18.5?'Underweight':bmi<25?'Normal':bmi<30?'Overweight':'Obese';
 
-  document.getElementById('ob-kcal').textContent  = tdee;
-  document.getElementById('ob-pro').textContent   = pro;
-  document.getElementById('ob-carb').textContent  = carb;
-  document.getElementById('ob-fat').textContent   = fat;
-  document.getElementById('ob-bmi').textContent   = bmi;
-  document.getElementById('ob-bmr').textContent   = Math.round(bmr);
-  document.getElementById('ob-fiber').textContent = fiber;
+  const maintainCal = Math.round(bmr * parseFloat(obActivity));
+  const calCards = [
+    { key:'lose',     icon:'📉', label:'Lose weight',     sub:'~500 kcal deficit · ~0.5 kg/week', kcal: maintainCal - 500 },
+    { key:'maintain', icon:'⚖️',  label:'Maintain weight', sub:'Stay at your current weight',       kcal: maintainCal },
+    { key:'gain',     icon:'📈', label:'Gain weight',     sub:'~300 kcal surplus · lean gain',     kcal: maintainCal + 300 },
+  ];
+  // store all 3 options so selectGoalCard can access them
+  // stash values needed by selectGoalCard
+  window._lastBmi = bmi;
+  window._lastBmr = bmr;
+  window._lastWt  = wt;
+  window._lastHt  = ht;
+  window._lastAge = age;
+  window._calCards = calCards;
 
-  const goalText = {lose:'Deficit of 500 kcal/day — roughly 0.5kg/week loss',maintain:'Maintenance — keep your current weight',gain:'Surplus of 300 kcal/day — lean muscle gain'}[obGoal];
-  document.getElementById('ob-result-note').textContent = `BMI: ${bmi} (${bmiCat}) · ${goalText}`;
+  document.getElementById('ob-goal-cards').innerHTML = calCards.map(c => `
+    <div class="ob-goal-card ${c.key}" id="ogc-${c.key}" onclick="selectGoalCard('${c.key}')">
+      <div class="ob-gc-left">
+        <div class="ob-gc-icon">${c.icon}</div>
+        <div class="ob-gc-label">${c.label}</div>
+        <div class="ob-gc-sub">${c.sub}</div>
+      </div>
+      <div class="ob-gc-right">
+        <div class="ob-gc-kcal">${c.kcal}</div>
+        <div class="ob-gc-unit">kcal / day</div>
+      </div>
+    </div>`).join('');
 
+  document.getElementById('ob-result-note').textContent = `BMI ${bmi} (${bmiCat}) · Tap a goal below to select it`;
   document.getElementById('ob-result').classList.add('show');
-  document.getElementById('ob-start-btn').disabled = false;
+  // keep Start button disabled until user taps a card
+  document.getElementById('ob-start-btn').disabled = true;
 
-  // store in memory so obFinish can save it
-  window._obCalc = {tdee, pro, carb, fat, fiber, bmr:Math.round(bmr), bmi, age, wt, ht, gender:obGender, activity:obActivity, goal:obGoal};
+  window._obCalc = null; // cleared until user picks a card
+}
+
+function selectGoalCard(key) {
+  const cards = window._calCards;
+  if(!cards) return;
+  const chosen = cards.find(c => c.key === key);
+  if(!chosen) return;
+
+  // visually highlight selected card, deselect others
+  cards.forEach(c => {
+    const el = document.getElementById('ogc-'+c.key);
+    if(el) el.classList.toggle('selected', c.key === key);
+  });
+
+  // update note
+  document.getElementById('ob-result-note').textContent =
+    `BMI ${window._lastBmi||''} · Goal: ${chosen.label} · ${chosen.kcal} kcal/day`;
+
+  // store the chosen goal in _obCalc
+  const base = window._calCards.find(c=>c.key==='maintain').kcal;
+  const {_lastBmr:bmr=0, _lastWt:wt=65, _lastHt:ht=175, _lastAge:age=25} = window;
+  const pro   = Math.round(wt * 1.8);
+  const fat   = Math.round(chosen.kcal * 0.27 / 9);
+  const carb  = Math.round((chosen.kcal - pro*4 - fat*9) / 4);
+  const fiber = Math.round(wt * 0.4);
+
+  window._obCalc = {
+    tdee: chosen.kcal, pro, carb, fat, fiber,
+    bmr: Math.round(bmr), bmi: window._lastBmi,
+    age, wt, ht,
+    gender: obGender, activity: obActivity, goal: key
+  };
+
+  document.getElementById('ob-start-btn').disabled = false;
 }
 
 function obFinish() {
