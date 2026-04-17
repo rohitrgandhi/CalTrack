@@ -440,11 +440,11 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text'
     <!-- Meals list -->
     <div id="meals-container"></div>
 
-    <button class="snap-cta" onclick="showScreen('add')">+ Add meal</button>
+
   </div>
   <nav class="bottom-nav">
     <button class="nav-item active" id="nav-log" onclick="showScreen('log')"><span class="nav-icon">📋</span>Log</button>
-    <button class="nav-item" id="nav-add" onclick="showScreen('add')"><span class="nav-icon">➕</span>Add</button>
+    <button class="nav-item" id="nav-add" onclick="showScreen('add')"><span class="nav-icon">➕</span>Add manually</button>
     <button class="nav-item" id="nav-snap" onclick="showScreen('snap')"><span class="nav-icon">📷</span>Snap</button>
   </nav>
 </div>
@@ -518,7 +518,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text'
   </div>
   <nav class="bottom-nav">
     <button class="nav-item" id="nav-log2" onclick="showScreen('log')"><span class="nav-icon">📋</span>Log</button>
-    <button class="nav-item active" id="nav-add2" onclick="showScreen('add')"><span class="nav-icon">➕</span>Add</button>
+    <button class="nav-item active" id="nav-add2" onclick="showScreen('add')"><span class="nav-icon">➕</span>Add manually</button>
     <button class="nav-item" id="nav-snap2" onclick="showScreen('snap')"><span class="nav-icon">📷</span>Snap</button>
   </nav>
 </div>
@@ -577,7 +577,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text'
   </div>
   <nav class="bottom-nav">
     <button class="nav-item" id="nav-log3" onclick="showScreen('log')"><span class="nav-icon">📋</span>Log</button>
-    <button class="nav-item" id="nav-add3" onclick="showScreen('add')"><span class="nav-icon">➕</span>Add</button>
+    <button class="nav-item" id="nav-add3" onclick="showScreen('add')"><span class="nav-icon">➕</span>Add manually</button>
     <button class="nav-item active" id="nav-snap3" onclick="showScreen('snap')"><span class="nav-icon">📷</span>Snap</button>
   </nav>
 </div>
@@ -687,7 +687,7 @@ function renderLog() {
       const vr=buildVitHTML(item);
       return `<div class="log-item">
         <div class="log-item-name">${item.name}</div>
-        <div class="log-item-qty">${item.quantity||''}</div>
+        <div class="log-item-qty">${item.unit||item.quantity||''}</div>
         <div class="log-item-chips">
           <span class="chip chip-cal">${item.calories} kcal</span>
           <span class="chip chip-pro">${item.protein}g P</span>
@@ -724,8 +724,8 @@ function toggleVit(id,btn) {
 function changeLoggedQty(key, mIdx, iIdx, delta) {
   const item = logs[key][mIdx].items[iIdx];
   if(!item._base) item._base = {calories:item.calories,protein:item.protein,carbs:item.carbs,fat:item.fat,fiber:item.fiber};
-  item._qty = Math.max(0.5, (item._qty||1) + delta);
-  const q = item._qty;
+  item.qty = Math.max(1, (item.qty||1) + delta);
+  const q = item.qty;
   item.calories = Math.round(item._base.calories * q);
   item.protein  = Math.round(item._base.protein  * q * 10) / 10;
   item.carbs    = Math.round(item._base.carbs    * q * 10) / 10;
@@ -739,7 +739,7 @@ function changeLoggedQty(key, mIdx, iIdx, delta) {
   document.getElementById('lk-'+lprefix).textContent=item.carbs+'g C';
   document.getElementById('lf-'+lprefix).textContent=item.fiber+'g F';
   document.getElementById('lft-'+lprefix).textContent=item.fat+'g fat';
-  document.getElementById('lq-'+lprefix).textContent=q%1===0?q:q.toFixed(1);
+  document.getElementById('lq-'+lprefix).textContent=q;
   // update meal totals and day totals
   const mt=calcItemTotals(logs[key][mIdx].items||[]);
   const t=getDayTotals(key);
@@ -1003,18 +1003,24 @@ window._baseItems = {};
 function renderItemCardsHTML(items, prefix) {
   prefix = prefix || 'ic';
   return items.map((item,idx)=>{
-    // store base values (qty=1)
+    // base = per-unit macros (server returns macros for 1 unit)
     window._baseItems[prefix+'-'+idx] = {
       calories: item.calories, protein: item.protein,
       carbs: item.carbs, fat: item.fat, fiber: item.fiber
     };
-    item._qty = item._qty || 1;
+    const initQty = item.qty || 1;
+    item.qty = initQty;
+    item.calories = Math.round(item.calories * initQty);
+    item.protein  = Math.round(item.protein  * initQty * 10) / 10;
+    item.carbs    = Math.round(item.carbs    * initQty * 10) / 10;
+    item.fat      = Math.round(item.fat      * initQty * 10) / 10;
+    item.fiber    = Math.round(item.fiber    * initQty * 10) / 10;
     const vr=buildVitHTML(item);
     return `<div class="item-card" id="${prefix}-${idx}">
       <div class="item-card-header">
         <div class="item-card-info">
           <div class="item-card-name" id="${prefix}-n-${idx}">${item.name}</div>
-          <div class="item-card-qty" id="${prefix}-q-${idx}">${item.quantity||''}</div>
+          <div class="item-card-qty" id="${prefix}-q-${idx}">${item.unit||''}</div>
         </div>
         <button class="item-edit-btn" onclick="openItemEdit(${idx},'${prefix}')">✏️ Wrong?</button>
       </div>
@@ -1029,7 +1035,7 @@ function renderItemCardsHTML(items, prefix) {
         <span class="qty-label">Quantity</span>
         <div class="qty-ctrl">
           <button class="qty-btn" onclick="changeItemQty(${idx},'${prefix}',-1)">−</button>
-          <span class="qty-val" id="${prefix}-qty-${idx}">${item._qty}</span>
+          <span class="qty-val" id="${prefix}-qty-${idx}">${initQty}</span>
           <button class="qty-btn" onclick="changeItemQty(${idx},'${prefix}',1)">+</button>
         </div>
       </div>
@@ -1055,8 +1061,8 @@ function changeItemQty(idx, prefix, delta) {
   const items = currentMeal && currentMeal.items;
   if(!items || !items[idx]) return;
   const item = items[idx];
-  item._qty = Math.max(0.5, (item._qty||1) + delta);
-  const q = item._qty;
+  item.qty = Math.max(1, (item.qty||1) + delta);
+  const q = item.qty;
 
   // scale macros
   item.calories = Math.round(base.calories * q);
@@ -1066,7 +1072,7 @@ function changeItemQty(idx, prefix, delta) {
   item.fiber    = Math.round(base.fiber    * q * 10) / 10;
 
   // update DOM
-  document.getElementById(prefix+'-qty-'+idx).textContent = q % 1 === 0 ? q : q.toFixed(1);
+  document.getElementById(prefix+'-qty-'+idx).textContent = q;
   document.getElementById(prefix+'-cal-'+idx).textContent  = item.calories+' kcal';
   document.getElementById(prefix+'-pro-'+idx).textContent  = item.protein+'g P';
   document.getElementById(prefix+'-carb-'+idx).textContent = item.carbs+'g C';
@@ -1106,7 +1112,7 @@ async function confirmItemEdit(idx, prefix) {
     const json=await res.json();
     if(!res.ok||json.error) throw new Error(json.error);
     const item=json.item;
-    item._qty=1;
+    item.qty=1;
     if(currentMeal&&currentMeal.items) currentMeal.items[idx]=item;
     // reset base
     window._baseItems[prefix+'-'+idx]={calories:item.calories,protein:item.protein,carbs:item.carbs,fat:item.fat,fiber:item.fiber};
